@@ -1,9 +1,10 @@
 
-var User = require('../models/users.js');
-
 
 var fs = require('fs'),
 base64Img = require('base64-img');
+
+var User = require('../models/users.js');
+var Wall = require('../models/walls.js');
 
 
 
@@ -18,53 +19,26 @@ module.exports = function(app) {
 
 	app.get("/wall", function(req, res) {
 
-		fs.readdir('public/img/uploads', function(err, pics){
 		    var user = req.user || null;
 
-		    var imgs = [];
-
-		    if (err) {
-		        throw err;
-		    }
-
-		    // do not use results return by readdir (in this case I call it pics) 
-		    // because could have hidden .files such as DS Store
-		    for (var i = 0; i < pics.length; i++) {
-		    	if(pics[i].substr(-4) === ".png"){
-		    		imgs.push("/img/uploads/" + pics[i]);
+		    Wall.find(function(err, canvas){
+		    	if(!canvas.length){
+					res.render("index", { user: user, anchors: {}, info: req.flash('info') });
+		    	}else{
+		    		res.render("index", { user: user, anchors: canvas[0].elements, info: req.flash('info') });
 		    	}
-		    }
-
-		    res.render("index", { user: user, imgs: imgs, info: req.flash('info') });
-
-
-		});
+		    });
 
 	});
 
 
-	app.get("/staticpics", function(req, res) {
-
-		fs.readdir('public/img/uploads', function(err, pics){
+	app.get("/updatedelements", function(req, res) {
 
 		    var imgs = [];
 
-		    if (err) {
-		        throw err;
-		    }
-
-		    // do not use results return by readdir (in this case I call it pics) 
-		    // because could have hidden .files such as DS Store
-		    for (var i = 0; i < pics.length; i++) {
-		    	if(pics[i].substr(-4) === ".png"){
-		    		imgs.push("/img/uploads/" + pics[i]);
-		    	}
-		    }
 
 		    res.send(imgs);
 
-
-		});
 
 	});
 
@@ -96,13 +70,41 @@ module.exports = function(app) {
 	});
 
 
-	app.post("/url/action", function(req, res) {
+	app.post("/uploadlinks", function(req, res) {
+
 		if(req.isAuthenticated()){
-			// Convert the base64 data Url to a png file and store in /public/img/uploads/ directory
-		 	base64Img.img(req.body.dataUrl, './public/img/uploads/', String(new Date().getTime()), function(err, filepath) {
-				res.end();
-			});
+			Wall.find(function(err, canvas){
+
+				if(!canvas.length){
+					canvas = new Wall();
+					canvas.elements.push({
+						content: req.body['data[0][content]'],
+						top: req.body['data[0][top]'],
+						left: req.body['data[0][left]'],
+						color: req.body['data[0][color]']
+					});
+
+				} else {
+					canvas[0].elements.push({
+						content: req.body['data[0][content]'],
+						top: req.body['data[0][top]'],
+						left: req.body['data[0][left]'],
+						color: req.body['data[0][color]']
+					});
+
+				}
+
+
+				canvas[0].save(function(){
+					return res.send("success");
+				});
+
+				
+			})
+
 	 	}
+
+
 	});
 
 

@@ -40,6 +40,11 @@ body {
   overflow: hidden;
 }
 
+#backSetting a {
+  cursor: pointer;
+  position: absolute;
+}
+
 #draftLayer {
   position: absolute;
   left: 50%;
@@ -48,6 +53,10 @@ body {
   z-index: 2;
   cursor: default;
   overflow: hidden;
+}
+
+#draftLayer a {
+  cursor: pointer;
 }
 
 #backSetting img {
@@ -155,13 +164,6 @@ body {
 }
 
 #toolBar input {
-  display: block;
-  margin: 10px auto;
-  outline: none;
-  cursor: default;
-}
-
-#toolBar select {
   display: block;
   margin: 10px auto;
   outline: none;

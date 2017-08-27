@@ -12,8 +12,8 @@ html(lang='en' ng-app)
     include partials/heading.jade
     include partials/authform.jade
     div#backSetting
-      for img in imgs
-        img(src=img)
+      for anchor in anchors
+        a(href=anchor.content style="top:"+anchor.top+";left:"+anchor.left+";color:"+anchor.color+";" target="_blank")= anchor.content
     if(user)
       include partials/toolbar.jade
     

@@ -5,12 +5,9 @@ div#toolBar.hide
   div
     input(type="color" id="colInp" name="color")
   div
-    select
-        option(value="draw") draw
-        option(value="text") text
+    input#addTextBox(type='text', draggable='true')
   div
     input#backgroundTog(type="checkbox")
   div#postBtn
     input(type="button" value="post")
 
-script(src="https://cdnjs.cloudflare.com/ajax/libs/dom-to-image/2.5.2/dom-to-image.min.js")

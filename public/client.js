@@ -1,7 +1,8 @@
 var smallerScreenDimen,
 	leftButtonDown,
 	lastWidthDimen,
-	scaleClose;
+	scaleClose,
+	linkCol = [];
 	
 
 
@@ -24,21 +25,13 @@ $("#nav span").on("click", function(){
 				return;
 			}
 
-			// make sure the background is switched back to visible if was in hidden state
-			if(document.getElementById("backgroundTog").checked){
-				$("#backgroundTog").trigger("click");
-			}
-			// Remove elements as well as event listeners that are only needed while in "Edit" state. 
-			// Not necessary to keep listening for events only needed in that state. Removing the 
-			// #draftLayer effectively removes listeners attached to it
-			$("#draftLayer").remove();
-			$("#toolBar").addClass("hide");
 
-			$(document).off("mousedown");
-			$(document).off("mouseup");
+
+			location.reload(true);
+
 
 			// Request new pictures from backend to add to the canvas
-			getNewCanvas()
+			// getNewCanvas()
 
 		}else{
 
@@ -115,61 +108,46 @@ $("#toolBar #refreshBtn").on("click", function(){
 $("#toolBar #backgroundTog").on("click", function(){
 	// Toggle between shwoing and hiding of background set of canvas images
 	if($(this)[0].checked){
-		$("#backSetting img").hide();
+		$("#backSetting a").hide();
 	}else{
-		$("#backSetting img").show();
+		$("#backSetting a").show();
 	}
 });
 
+$("#toolBar").delegate("#addTextBox", "keyup", function(event){
 
-$("#toolBar select").on("change", function(){
-	// select element starts of on draw so if condition wont be met until it goes cycle of text then back to draw
-	if($(this).val() === "draw"){
-		$(this).closest("div").prev().remove();
+	if(this.value.indexOf(".") !== -1){
+		this.style.border = "2px solid limegreen";
 	}else{
-		$(this).closest("div").before("<div><input type='text' id='addTextBox' draggable='true' /></div>")
+		this.style.border = "";
 	}
 });
+
 
 $("#toolBar").delegate("#addTextBox", "dragstart", function(event){
-	// attach the element id as data to be transfered to know which element to append when dropped over editable div
-	event.originalEvent.dataTransfer.setData("text", event.target.getAttribute("id"));
-	event.originalEvent.dataTransfer.dropEffect = 'move';
+	var link = this.value.trim()
+
+	if(link.indexOf(".") !== -1) {
+		if(link.indexOf("http") === -1){ link = "http://" + link; }
+		this.value = link;
+
+
+		// attach the element id as data to be transfered to know which element to append when dropped over editable div
+		event.originalEvent.dataTransfer.setData("text", event.target.getAttribute("id"));
+		event.originalEvent.dataTransfer.dropEffect = 'move';
+	}else {
+		event.preventDefault();
+	}
 });
 
+
 $("#toolBar [type=button]").on("click", function(event){
-	// Only handle the submit button click if work has been done on the editable div (#draftLayer), if it has any 
-	// children elements work has been done 
-	if($("#draftLayer")[0].firstChild && confirm("Are you sure you are finished? If so we will upload your work and provide you with a blank slate")){
 
-		  var node = document.getElementById('draftLayer');
-
-		
-		$("#draftLayer").css({
-					left: "0",
-					top: "0",
-					marginTop:"0",
-					transform: "translate(0,0)"
-				});
-		// Copy the dom node (#draftLayer) as a base64 data url
-	    domtoimage.toPng(node)
-		    .then(function (dataUrl) {
-
-				$.post({
-				    url: "/url/action",
-				    data: { dataUrl: dataUrl }
-				}).done(function(e){
-		            location.reload(true)
-		        });
-
-		    })
-		    .catch(function (error) {
-		    	// Refreshing the page will delete the draft layer essentially because it 
-		    	// starts not there on pg reload because pg starts on non-edit state
-		        location.reload(true)
-		        console.error('oops, something went wrong!', error);
-		    });
-
+	if(linkCol.length){
+		 $.post("/uploadlinks", { data: linkCol }, function(data){
+		 	console.log(data);
+		 });
+			
 	}
 
 });
@@ -180,8 +158,8 @@ $("#loginBlock").delegate("#loginForm", "submit", function(event) {
 
 	// clear img interval no point in asking for images from backend when submitting form and 
 	// going to reload page anyway
-	clearInterval(getPrintInterval)
-	// get the state that has the current active class
+	// clearInterval(getPrintInterval) // todo
+	// get the element in loginBlock with current active class
 	var state = $(this).closest("#loginBlock").find(".active");
 	// serialize form fields
 	var formdata = $(this).serializeArray();
@@ -190,8 +168,8 @@ $("#loginBlock").delegate("#loginForm", "submit", function(event) {
 	    data[obj.name] = obj.value;
 	});
 
-	$("#loginBlock").removeClass("hide");
-	$("#overlay").removeClass("hide");
+	$("#loginBlock").addClass("hide");
+	$("#overlay").addClass("hide");
 
 
 	var url = state[0] === $("#loginBlock span")[0] ? "/signin" : "/signup";
@@ -236,19 +214,6 @@ $("#overlay").on("click", function(){
 // Add the event listeners that will be added and removed as the editable layer is deleted and added
 function addEditStateEvents() {
 
-	$("#draftLayer").on("mousemove", function(event){
-		// Not enough to check if mouse is moving also need to check if left mouse button is down
-	  	if(leftButtonDown && $("#toolBar select").val() === "draw"){
-
-  		   $("<div class='dot'>")
-  			   .appendTo(this)
-  			   .css({
-				  top: (event.clientY-event.target.offsetTop) + "px", 
-				  left: (event.clientX-(event.target.offsetLeft - (parseInt(event.target.style.width)/2))) + "px",
-				  background: $("#toolBar [type=color]").val()
-			   });
-  		}
-	});
 
 	$("#draftLayer").on("drop", function(event){
 		event.preventDefault();
@@ -264,15 +229,31 @@ function addEditStateEvents() {
 			position: "absolute",
 			top: (event.clientY-event.target.offsetTop) + "px",
 			left: (event.clientX-(event.target.offsetLeft - (parseInt(event.target.style.width)/2))) + "px",
-			color: $("#toolBar [type=color]").val(),
-			width: $(this).width - 
-				   (event.clientX-(event.target.offsetLeft - (parseInt(event.target.style.width)/2))) + "px",
-			outline: "none",
-			border: "none"
+			// width: $(this).width - 
+			// 	   (event.clientX-(event.target.offsetLeft - (parseInt(event.target.style.width)/2))) + "px",
+			opacity: 0
 		});
+
+		var a = $("<a>", { href: inpObjRef.value, target: "_blank" });
+		a.css({
+			position: "absolute",
+			top: $(inpObjRef).css("top"),
+			left: $(inpObjRef).css("left"),
+			color: $("#toolBar [type=color]").val()
+		});
+
+		a.text(inpObjRef.value);
+
+		linkCol.push({ content: inpObjRef.value, top: $(inpObjRef).css("top"), left: $(inpObjRef).css("left"), color: $("#toolBar [type=color]").val() });
+
+
+		$(this).append(a);
+		$(inpObjRef).remove();
+
 
 		$("#toolBar div:nth-child(3)").append("<input type='text' id='addTextBox' draggable='true' />");
 	});
+
 
 	$("#draftLayer").on("dragover", function(event){
 		return false;
@@ -341,33 +322,33 @@ function scaleSketch(){
 
 
 
-function getNewCanvas() {
+// function getNewCanvas() {
 
-	$.get({
-		url: '/staticpics',
-	})
-	.done(function(imgs){
-		var canvasLayer = $('#backSetting')[0];
+// 	$.get({
+// 		url: '/updatedelements',
+// 	})
+// 	.done(function(imgs){
+// 		var canvasLayer = $('#backSetting')[0];
 
-      		var currLastImg = canvasLayer.children.length > 0 ? 
-                        parseInt(canvasLayer.children[canvasLayer.children.length - 1].getAttribute("src").substr(13)) : 0;
+//       		var currLastImg = canvasLayer.children.length > 0 ? 
+//                         parseInt(canvasLayer.children[canvasLayer.children.length - 1].getAttribute("src").substr(13)) : 0;
 
-		var domFrag = document.createDocumentFragment();
+// 		var domFrag = document.createDocumentFragment();
 
-        for(var i = 0, img; i < imgs.length; i++){
+//         for(var i = 0, img; i < imgs.length; i++){
 
-        	if(currLastImg < parseInt(imgs[i].substr(13))){
-        		img = document.createElement("img");
-        		img.src = imgs[i];
+//         	if(currLastImg < parseInt(imgs[i].substr(13))){
+//         		img = document.createElement("img");
+//         		img.src = imgs[i];
 
-        		domFrag.appendChild(img);
-        	}
-        }
+//         		domFrag.appendChild(img);
+//         	}
+//         }
 
-        document.getElementById("backSetting").appendChild(domFrag);
+//         document.getElementById("backSetting").appendChild(domFrag);
 
-    });
-}
+//     });
+// }
 
 
 // Initialize the Canvas Dimensions
@@ -386,7 +367,7 @@ lastWidthDimen = smallerScreenDimen.height ? smallerScreenDimen.height : smaller
 $(window).on("resize", function(){ clearTimeout(scaleClose); scaleClose = setTimeout(tailorCanvas, 500); })
 
 
-getPrintInterval = window.setInterval(getNewCanvas, 20000);
+// getPrintInterval = window.setInterval(getNewCanvas, 20000);
 
 
 
